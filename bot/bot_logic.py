@@ -201,6 +201,13 @@ def get_search_offset(search_res_list, counter):
 
 def add_to_black_list(event_text, user_id, matches, counter):
     match = matches[counter]
+    if 0 < counter <= len(matches) - 1:
+        counter = counter
+    elif counter < 0:
+        counter = 0
+    else:
+        counter = len(matches) - 1
+    match = matches[counter]
     option = {
         'В черный список': ["Запись внесена в черный список",
                             "При попытке добавления записи в 'Черный список', произошла ошибка",
@@ -231,6 +238,12 @@ def add_to_favorites(event_text, user_id, matches, counter):
     :param counter: int (position of currently viewing record in search_res_list)
     :return: str (message to user)
     """
+    if 0 < counter <= len(matches) - 1:
+        counter = counter
+    elif counter < 0:
+        counter = 0
+    else:
+        counter = len(matches) - 1
     match = matches[counter]
     option = {
         'В избранное': ["Запись успешно добавлена в избранное",

@@ -2,8 +2,8 @@ from vk_api import VkUpload, VkApi
 import re
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from api.api_requests import read_token, VKSearch
-import bot.bot_keyboardы as keyboard
-from bot.bot_keyboardы import CALLBACK_TYPES
+import bot.bot_keyboards as keyboard
+from bot.bot_keyboards import CALLBACK_TYPES
 import bot.bot_logic as logic
 from bot.bot_user_auth import missed_user_data_collector
 from database import databases as db
