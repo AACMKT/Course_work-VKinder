@@ -1,7 +1,7 @@
 import sqlalchemy as sq
 from sqlalchemy.orm import sessionmaker
 from config import database, user, password
-from database.models import User, Favorite, BlackList, SettingSearch
+from database.models import User, Favorite, BlackList, SettingSearch, create_tables
 
 # создаем движок
 DSN = f'postgresql://{user}:{password}@localhost:5432/{database}'
@@ -35,18 +35,6 @@ def add_user(id_vk: int) -> bool:
     else:
 
         return False
-
-
-# def add_user_(info: dict) -> bool:
-#     """добавляем в User, плюс проверка на наличие в таблице"""
-#     result = session.query(User).filter(
-#         User.id == info['id']).all()
-#     if not result:
-#         model = {"id": info['id']}
-#         session.add(User(**model))
-#         session.commit()
-#     else:
-#         return False
 
 
 def add_favorite(info: dict, id_vk) -> bool:
@@ -268,3 +256,11 @@ def update_status_not_married(vk_id: int):
 
 
 session.close()
+
+if __name__ == '__main__':
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    create_tables(engine)
+
+    session.close()

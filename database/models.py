@@ -78,10 +78,10 @@ class SettingSearch(Base):
 
 
 def create_tables(engine):
-    """создаем Таблицы"""
+    """Создаем Таблицы"""
     Base.metadata.create_all(engine)
 
 
 def drop_tables(engine):
-    """удаляем Таблицы"""
+    """Удаляем Таблицы"""
     Base.metadata.drop_all(engine)
