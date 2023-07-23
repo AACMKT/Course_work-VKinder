@@ -1,4 +1,4 @@
-token_soob = vk1.a.2GOW0nGAG2nQTOHr23PplLU-r8rPdyem8kshySKa7-RXf_zTLhSpqRlbYuwL2e4_GwWl8ww_gFhUFWx1sH_BMuiAAAvZcUzZPRyTE4FfVxajoB6hd-lNWiPCjOOWZP9kFAPn0XhZPf-j3VLRGDrUd7iBzakUu7BMWYBti7YXlGLWzp75xUgST5rdYKoD54eevQEuJqvyMNLcbySdWw56eg
+token_soob = 'enter VK-group token here.'
 token_vk = 'enter your personal VK-token here.'
 database = 'vkinder_db'
 user = 'postgres'
