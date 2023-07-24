@@ -3,4 +3,4 @@ token_vk = 'enter your personal VK-token here.'
 database = 'vkinder_db'
 user = 'postgres'
 password = 'enter your PostgreSQL password here'
-group_id = 221586346
+group_id = 'enter number of your VK-group here.'
