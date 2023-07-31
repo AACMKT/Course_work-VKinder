@@ -4,6 +4,85 @@ from vk_api.bot_longpoll import VkBotEventType
 from bot.bot_logic import get_birth_date, get_city, get_sex
 
 
+class StateSettingDialog:
+    def __init__(self, session, dictionary, user_id):
+        self.BIRTHDAY = 2
+        self.CITY = 4
+        self.SEX = 6
+        self.regex = r'\d{1,2}\.\d{1,2}\.\d{2,4}$'
+        self.dictionary = dictionary
+        self.user_id = user_id
+        self.session = session
+
+    def send_feedback(self, msg):
+        self.session.messages.send(
+            user_id=self.user_id,
+            random_id=get_random_id(),
+            message=msg
+        )
+
+    def specify_personal_info(self, event, req_data: str, count):
+        verifier = True
+        if req_data not in self.dictionary.keys():
+            is_key = True
+            wrong_data = True
+        else:
+            is_key = True
+            if self.dictionary[req_data] == 'Fail':
+                wrong_data = True
+            else:
+                wrong_data = False
+
+        message_control = self.session.messages.getHistory(user_id=self.user_id, count=2)['items'][1]['text']
+        response_dict = {
+            'bdate': ['Введите вашу дату рождения (дд.мм.гггг):',
+                      'Не удалось идентифицировать данные (др). Повторите ввод:', 'Дата рождения добавлена', 1],
+            'city': ['Укажите город проживания:',
+                     'Не удалось идентифицировать данные(город). Повторите ввод:', 'Город проживания добавлен', 3],
+            'sex': ['Укажите свой пол (муж. или жен.):',
+                    'Не удалось идентифицировать данные(пол). Повторите ввод:', 'Пол добавлен', 5]
+        }
+        if req_data not in response_dict:
+            req_data = 'bdate'
+
+        if req_data == 'bdate':
+            if req_data in self.dictionary.keys() and re.match(self.regex, self.dictionary[req_data]) is None:
+                wrong_format = True
+            else:
+                wrong_format = False
+
+            data_request = (is_key or wrong_data or wrong_format) and count < response_dict[req_data][3]
+        else:
+            data_request = (is_key or wrong_data) and count < response_dict[req_data][3]
+
+        if data_request:
+            verifier = False
+            if req_data not in self.dictionary.keys():
+                self.send_feedback(response_dict[req_data][0])
+                count = response_dict[req_data][3]
+        if message_control == response_dict[req_data][0] and count == response_dict[req_data][3]:
+            verifier = True
+        if verifier:
+            if req_data == 'bdate':
+                function = get_birth_date(event)
+            elif req_data == 'city':
+                function = get_city(event)
+            else:
+                function = get_sex(event)
+            self.dictionary.update({req_data: function})
+            if function == 'Fail':
+                self.send_feedback(response_dict[req_data][1])
+
+            elif function != 'Fail' and count < (response_dict[req_data][3] + 1):
+                count = (response_dict[req_data][3] + 1)
+                self.send_feedback(response_dict[req_data][2])
+
+        if req_data in self.dictionary.keys() and self.dictionary[req_data] != 'Fail':
+            count = (response_dict[req_data][3] + 1)
+
+        return count
+
+
 def missed_user_data_collector(session, longpoll, user_id, dictionary, count=0):
     """
     Function allows to get from user missed personal data
@@ -14,117 +93,31 @@ def missed_user_data_collector(session, longpoll, user_id, dictionary, count=0):
     :param count: inner counter for steps execution control. It is possible to skip some steps, by changing this param
     :return: full dictionary with user params
     """
+    dialog = StateSettingDialog(session, dictionary, user_id)
     for event in longpoll.listen():
         if event.type == VkBotEventType.MESSAGE_NEW:
             if event.from_user:
                 if event.obj.message['text'] == 'Закончить сеанс':
                     return False
-                else:
-                    if 'bdate' not in dictionary.keys() \
-                            or re.match(r'\d{1,2}\.\d{1,2}\.\d{2,4}$', dictionary['bdate']) is None \
-                            or dictionary['bdate'] == 'Fail':
-                        if count == 0 and ('bdate' not in dictionary.keys()
-                                           or re.match(r'\d{1,2}\.\d{1,2}\.\d{2,4}$', dictionary['bdate']) is None):
-                            session.messages.send(
-                                user_id=user_id,
-                                random_id=get_random_id(),
-                                message='Введите вашу дату рождения (дд.мм.гггг): '
-                            )
-                            count = 1
-                        if session.messages.getHistory(user_id=user_id, count=2)['items'][0]['text'] not in \
-                                ['Введите вашу дату рождения (дд.мм.гггг):'] and count < 2:
-                            dictionary.update({'bdate': get_birth_date(event)})
-                            if get_birth_date(event) == 'Fail':
-                                session.messages.send(
-                                    user_id=user_id,
-                                    random_id=get_random_id(),
-                                    message='Не удалось идентифицировать данные (др). Повторите ввод: '
-                                )
-                            elif get_birth_date(event) != 'Fail' and count < 2:
-                                count = 2
-                                session.messages.send(
-                                    user_id=user_id,
-                                    random_id=get_random_id(),
-                                    message='Дата рождения добавлена'
-                                )
-                    else:
-                        if count < 2:
-                            count = 2
+                if dialog.BIRTHDAY > count >= 0:
+                    count = dialog.specify_personal_info(event, 'bdate', count)
+                if dialog.CITY > count >= dialog.BIRTHDAY:
+                    count = dialog.specify_personal_info(event, 'city', count)
+                if dialog.SEX > count >= dialog.CITY:
+                    count = dialog.specify_personal_info(event, 'sex', count)
 
-                    if ('bdate' in dictionary.keys() and dictionary['bdate'] != 'Fail'
-                        and re.match(r'\d{1,2}\.\d{1,2}\.\d{2,4}$', dictionary['bdate']) is not None) and (
-                            'city' not in dictionary.keys() or dictionary['city'] == 'Fail'):
-                        if count == 2 and 'city' not in dictionary.keys():
-                            session.messages.send(
-                                user_id=user_id,
-                                random_id=get_random_id(),
-                                message='Укажите город проживания:'
-                            )
-                            count = 3
-                        if session.messages.getHistory(user_id=user_id, count=2)['items'][0]['text'] \
-                                != 'Укажите город проживания:' and count < 4:
-                            dictionary.update({'city': get_city(event)})
-                            if get_city(event) == 'Fail':
-                                session.messages.send(
-                                    user_id=user_id,
-                                    random_id=get_random_id(),
-                                    message='Не удалось идентифицировать данные(город). Повторите ввод: '
-                                )
-                            elif get_city(event) != 'Fail' and count < 4:
-                                count = 4
-                                session.messages.send(
-                                    user_id=user_id,
-                                    random_id=get_random_id(),
-                                    message='Город проживания добавлен'
-                                )
-                    elif ('bdate' in dictionary.keys() and dictionary['bdate'] != 'Fail'
-                          and re.match(r'\d{1,2}\.\d{1,2}\.\d{2,4}$', dictionary['bdate']) is not None) and \
-                            ('city' in dictionary.keys() and dictionary['city'] != 'Fail'):
-                        if count < 4:
-                            count = 4
-
-                    if ('bdate' in dictionary.keys() and dictionary['bdate'] != 'Fail'
-                        and re.match(r'\d{1,2}\.\d{1,2}\.\d{2,4}$', dictionary['bdate']) is not None) and \
-                            ('city' in dictionary.keys() and dictionary['city'] != 'Fail') and \
-                            ('sex' not in dictionary.keys() or dictionary['sex'] == 'Fail'):
-                        if count == 4 and 'sex' not in dictionary.keys():
-                            session.messages.send(
-                                user_id=user_id,
-                                random_id=get_random_id(),
-                                message='Укажите свой пол (муж. или жен.):'
-                            )
-                            count = 5
-                        if session.messages.getHistory(user_id=user_id, count=2)['items'][0]['text'] \
-                                != 'Укажите свой пол (муж. или жен.):' and count < 6:
-                            dictionary.update({'sex': get_sex(event)})
-                            if get_sex(event) == 'Fail':
-                                session.messages.send(
-                                    user_id=user_id,
-                                    random_id=get_random_id(),
-                                    message='Не удалось идентифицировать данные(пол). Повторите ввод: '
-                                )
-                            elif get_city(event) != 'Fail' and count < 6:
-                                count = 6
-                                session.messages.send(
-                                    user_id=user_id,
-                                    random_id=get_random_id(),
-                                    message='Пол добавлен'
-                                )
-
-                    if 'bdate' in dictionary.keys() \
-                            and re.match(r'\d{1,2}\.\d{1,2}\.\d{2,4}$', dictionary['bdate']) is not None \
-                            and 'city' in dictionary.keys() and 'sex' in dictionary.keys():
-                        correct_data_counter = 0
-                        for i in ['bdate', 'city', 'sex']:
-                            if dictionary[i] == 'Fail':
-                                dictionary.pop(i)
-                            else:
-                                correct_data_counter += 1
+                if count == 6:
+                    correct_data_counter = 0
+                    for i in ['bdate', 'city', 'sex']:
+                        if dictionary[i] == 'Fail':
+                            dictionary.pop(i)
                         else:
-                            if correct_data_counter == 3:
-                                session.messages.send(
-                                    user_id=user_id,
-                                    random_id=get_random_id(),
-                                    message='Все данные успешно добавлены!'
-                                )
-                            return dictionary
+                            correct_data_counter += 1
+                    else:
+                        if correct_data_counter == 3:
+                            session.messages.send(
+                                user_id=user_id,
+                                random_id=get_random_id(),
+                                message='Все данные успешно добавлены!'
+                            )
+                        return dictionary

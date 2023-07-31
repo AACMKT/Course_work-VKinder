@@ -15,12 +15,7 @@ def check_user(id_vk: int) -> bool:
     """Проверка только через переменную id_vk"""
     result = session.query(User).filter(
         User.id == id_vk).all()
-    if result:
-
-        return True
-    else:
-
-        return False
+    return bool(result)
 
 
 def add_user(id_vk: int) -> bool:
@@ -31,10 +26,7 @@ def add_user(id_vk: int) -> bool:
         model = {"id": id_vk}
         session.add(User(**model))
         session.commit()
-        return True
-    else:
-
-        return False
+    return bool(result)
 
 
 def add_favorite(info: dict, id_vk) -> bool:
@@ -89,9 +81,13 @@ def add_setting_search(info: dict) -> list:
 
 def get_black_list(id_vk: int) -> list:
     """получаем список из black_list"""
-    request = session.query(BlackList.id).filter(
-        BlackList.id == id_vk).all()
-    res = [i.id for i in request]
+    try:
+        request = session.query(BlackList.id).filter(
+            BlackList.id == id_vk).all()
+        res = [i.id for i in request]
+    except Exception as exs:
+        res = []
+        print(f"Ошибка получения значений из табл. BlackList: {exs}")
 
     return res
 
