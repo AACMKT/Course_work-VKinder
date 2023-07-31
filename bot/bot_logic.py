@@ -5,6 +5,54 @@ import re
 import datetime as dt
 
 
+class BotVariables:
+    """
+    Provides some variables and triggers-reset action.
+    """
+    def __init__(self):
+        self.CONFIRM = 'Согласен(на)'
+        self.START = 'Начать работу'
+        self.EXIT = 'Закончить сеанс'
+        self.NEXT = 'Вперед'
+        self.PREVIOUS = 'Назад'
+        self.SEARCH = 'Начать поиск'
+        self.VIEW_FAVORITES = 'Просмотреть избранное'
+        self.TO_FAVORITES = 'В избранное'
+        self.TO_BLACKLIST = 'В черный список'
+        self.SET_FILTERS = 'Настроить фильтры'
+        self.TO_MAIN_MENU = 'В главное меню'
+        self.REG_EX = r'\d{1,2}\.\d{1,2}\.\d{2,4}$'
+
+    @staticmethod
+    def reset_triggers(triggers_dict: dict, user_id):
+        triggers_dict[user_id]['first_stage'] = False
+        triggers_dict[user_id]['second_stage'] = False
+        triggers_dict[user_id]['third_stage'] = False
+        triggers_dict[user_id]['forth_stage'] = False
+
+
+def get_payload_event(event):
+    """reacts to payload events"""
+    # unfortunately it's a bad idea to use dict with events as a keys and functions as a values
+    payload = event.object.payload.get("type")
+    user_id = get_user_id(event)
+    trigger = True
+    if payload == "age_from_up":
+        return {'db_response': db.increase_age_from(user_id), 'trigger': trigger}
+    elif payload == "age_from_down":
+        return {'db_response': db.reduce_age_from(user_id), 'trigger': trigger}
+    elif payload == "age_to_up":
+        return {'db_response': db.increase_age_to(user_id), 'trigger': trigger}
+    elif payload == "age_to_down":
+        return {'db_response': db.reduce_age_to(user_id), 'trigger': trigger}
+    elif payload == "status_not_married":
+        return {'db_response': db.update_status_not_married(user_id), 'trigger': trigger}
+    elif payload == "status_in_search":
+        return {'db_response': db.update_status_to_in_active_search(user_id), 'trigger': trigger}
+    else:
+        return {'db_response': True, 'trigger': False}
+
+
 def greeting_message(user_id, user_token, user_info=None) -> str:
     """
     Prepares "greeting message" with search filters details.
@@ -25,21 +73,19 @@ def greeting_message(user_id, user_token, user_info=None) -> str:
             print(f'Ошибка при запросе параметров поиска: {exs}')
 
     if "status" in response.keys():
-        if int(response["status"]) == 6:
-            status = "В активном поиске"
-        elif int(response["status"]) == 1:
-            status = "Не состоит в браке"
-        else:
+        try:
+            status_dict = {6: "В активном поиске", 1: "Не состоит в браке"}
+            status = status_dict[response['status']]
+        except Exception:
             status = "Не учитывать"
     else:
         status = "Не определен"
 
     if "sex" in response.keys():
-        if int(response["sex"]) == 1:
-            sex = "женский"
-        elif int(response["sex"]) == 2:
-            sex = "мужской"
-        else:
+        try:
+            sex_dict = {1: "женский", 2: "мужской"}
+            sex = sex_dict[response['sex']]
+        except Exception:
             sex = "не указан"
     else:
         sex = "не определен"
@@ -200,7 +246,6 @@ def get_search_offset(search_res_list, counter):
 
 
 def add_to_black_list(event_text, user_id, matches, counter):
-    match = matches[counter]
     if 0 < counter <= len(matches) - 1:
         counter = counter
     elif counter < 0:
@@ -271,3 +316,45 @@ def disable_favorites_button(favorites_list):
         return False
     else:
         return True
+
+
+def scroll_forward(counter_, b_trigger, f_trigger):
+    """
+    Increases counter value within it's limits to provide next search result.
+    :param counter_: int
+    :param b_trigger: bool (flag for the 'to black_list' list event connected scripts )
+    :param f_trigger:bool (flag for the 'to favorites' list event connected scripts)
+    :return: list
+    """
+    if counter_ >= 0:
+        if b_trigger:
+            b_trigger = False
+        elif f_trigger:
+            f_trigger = False
+            counter_ += 1
+        else:
+            counter_ += 1
+    elif counter_ < 0:
+        counter_ = 0
+
+    return [counter_, b_trigger, f_trigger]
+
+
+def scroll_backward(counter_, matches, b_trigger, f_trigger):
+    """
+    Decreases counter value within it's limits to provide next search result.
+    :param counter_: int
+    :param matches: list ((with matches personal info dicts)
+    :param b_trigger: bool (flag for the 'to black_list' list event connected scripts )
+    :param f_trigger:bool (flag for the 'to favorites' list event connected scripts)
+    :return: list
+    """
+    if counter_ >= 0:
+        if b_trigger:
+            b_trigger = False
+            f_trigger = True
+        counter_ -= 1
+    if counter_ >= len(matches) - 1:
+        counter_ = len(matches) - 1
+
+    return [counter_, b_trigger, f_trigger]

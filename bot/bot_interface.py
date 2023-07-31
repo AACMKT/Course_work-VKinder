@@ -2,8 +2,11 @@ import json
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.utils import get_random_id
 from api.api_requests import VKSearch, read_token
+from bot.bot_logic import BotVariables
 
 CALLBACK_TYPES = ("show_snackbar", "open_link", "open_app")
+
+msg = BotVariables()
 
 
 def choose_keyboard(req_input, dis_fav_button: bool = False):
@@ -14,9 +17,9 @@ def choose_keyboard(req_input, dis_fav_button: bool = False):
     :return: dict (keyboard)
     """
     keyboards = {
-        'Настроить фильтры': initiate_inline_keyboard(),
-        'Закончить сеанс': empty_keyboard(),
-        'В главное меню': main_menu_update(dis_fav_button),
+        msg.SET_FILTERS: initiate_inline_keyboard(),
+        msg.EXIT: empty_keyboard(),
+        msg.TO_MAIN_MENU: main_menu_update(dis_fav_button),
     }
 
     if req_input in keyboards.keys():
@@ -36,16 +39,16 @@ def forward_backward_keyboard(menu_curr,
     :return: dict (keyboard)
     """
     keyboard = VkKeyboard(one_time=True)
-    keyboard.add_button(label='Назад', color=bw_color)
-    keyboard.add_button(label='Вперед', color=fw_color)
+    keyboard.add_button(label=msg.PREVIOUS, color=bw_color)
+    keyboard.add_button(label=msg.NEXT, color=fw_color)
     if menu_curr == "New_search":
         keyboard.add_line()
-        keyboard.add_button(label='В черный список', color=VkKeyboardColor.NEGATIVE)
-        keyboard.add_button(label='В избранное', color=VkKeyboardColor.POSITIVE)
+        keyboard.add_button(label=msg.TO_BLACKLIST, color=VkKeyboardColor.NEGATIVE)
+        keyboard.add_button(label=msg.TO_FAVORITES, color=VkKeyboardColor.POSITIVE)
     keyboard.add_line()
-    keyboard.add_button('В главное меню', color=VkKeyboardColor.SECONDARY)
+    keyboard.add_button(msg.TO_MAIN_MENU, color=VkKeyboardColor.SECONDARY)
     keyboard.add_line()
-    keyboard.add_button('Закончить сеанс', color=VkKeyboardColor.PRIMARY)
+    keyboard.add_button(msg.EXIT, color=VkKeyboardColor.PRIMARY)
 
     return keyboard
 
@@ -68,9 +71,9 @@ def intro_keyboard():
     :return: dict (keyboard)
     """
     keyboard = VkKeyboard(one_time=True)
-    keyboard.add_button(label='Начать работу', color=VkKeyboardColor.POSITIVE)
+    keyboard.add_button(label=msg.START, color=VkKeyboardColor.POSITIVE)
     keyboard.add_line()
-    keyboard.add_button(label='Закончить сеанс', color=VkKeyboardColor.PRIMARY)
+    keyboard.add_button(label=msg.EXIT, color=VkKeyboardColor.PRIMARY)
     return keyboard
 
 
@@ -80,9 +83,9 @@ def pers_data_permission_keyboard():
     :return: dict (keyboard)
     """
     keyboard = VkKeyboard(one_time=True)
-    keyboard.add_button(label='Согласен(на)', color=VkKeyboardColor.POSITIVE)
+    keyboard.add_button(label=msg.CONFIRM, color=VkKeyboardColor.POSITIVE)
     keyboard.add_line()
-    keyboard.add_button(label='Закончить сеанс', color=VkKeyboardColor.PRIMARY)
+    keyboard.add_button(label=msg.EXIT, color=VkKeyboardColor.PRIMARY)
     return keyboard
 
 
@@ -92,11 +95,11 @@ def main_new_user_keyboard():
     :return: dict (keyboard)
     """
     keyboard = VkKeyboard(one_time=True)
-    keyboard.add_button(label='Начать поиск', color=VkKeyboardColor.POSITIVE)
+    keyboard.add_button(label=msg.SEARCH, color=VkKeyboardColor.POSITIVE)
     keyboard.add_line()
-    keyboard.add_button('Настроить фильтры', color=VkKeyboardColor.SECONDARY, payload={"type": 'search'})
+    keyboard.add_button(msg.SET_FILTERS, color=VkKeyboardColor.SECONDARY, payload={"type": 'search'})
     keyboard.add_line()
-    keyboard.add_button('Закончить сеанс', color=VkKeyboardColor.PRIMARY)
+    keyboard.add_button(msg.EXIT, color=VkKeyboardColor.PRIMARY)
 
     return keyboard
 
@@ -107,12 +110,12 @@ def main_keyboard():
     :return: dict (keyboard)
     """
     keyboard = VkKeyboard(one_time=True)
-    keyboard.add_button(label='Начать поиск', color=VkKeyboardColor.POSITIVE)
+    keyboard.add_button(label=msg.SEARCH, color=VkKeyboardColor.POSITIVE)
     keyboard.add_line()
-    keyboard.add_button('Настроить фильтры', color=VkKeyboardColor.SECONDARY, payload={"type": 'search'})
-    keyboard.add_button('Просмотреть избранное', color=VkKeyboardColor.NEGATIVE, payload={"type": 'search'})
+    keyboard.add_button(msg.SET_FILTERS, color=VkKeyboardColor.SECONDARY, payload={"type": 'search'})
+    keyboard.add_button(msg.VIEW_FAVORITES, color=VkKeyboardColor.NEGATIVE, payload={"type": 'search'})
     keyboard.add_line()
-    keyboard.add_button('Закончить сеанс', color=VkKeyboardColor.PRIMARY)
+    keyboard.add_button(msg.EXIT, color=VkKeyboardColor.PRIMARY)
 
     return keyboard
 
@@ -123,9 +126,9 @@ def search_details_keyboard():
     :return: dict (keyboard)
     """
     keyboard = VkKeyboard(one_time=True)
-    keyboard.add_button(label='Начать поиск', color=VkKeyboardColor.POSITIVE)
+    keyboard.add_button(label=msg.SEARCH, color=VkKeyboardColor.POSITIVE)
     keyboard.add_line()
-    keyboard.add_button('Закончить сеанс', color=VkKeyboardColor.PRIMARY)
+    keyboard.add_button(msg.EXIT, color=VkKeyboardColor.PRIMARY)
 
     return keyboard
 
@@ -399,10 +402,13 @@ def forward_backward_navigation(search_res_list, counter: int, menu_curr='New_se
                    f'\n ссылка: {"https://vk.com/id" + str(search_res_list[counter]["id"])}'
         else:
             info = 'Вы просмотрели все результаты в рамках текущего запроса'
-        if 0 < counter < len(search_res_list) - 1:
+        if len(search_res_list) == 1:
+            keyboard = forward_backward_keyboard(menu_curr,
+                                                 bw_color=VkKeyboardColor.SECONDARY, fw_color=VkKeyboardColor.SECONDARY)
+        elif 0 < counter < len(search_res_list) - 1 and len(search_res_list) != 1:
             keyboard = forward_backward_keyboard(menu_curr,
                                                  bw_color=VkKeyboardColor.NEGATIVE, fw_color=VkKeyboardColor.POSITIVE)
-        elif counter == 0:
+        elif counter == 0 and len(search_res_list) != 1:
             keyboard = forward_backward_keyboard(menu_curr,
                                                  bw_color=VkKeyboardColor.SECONDARY, fw_color=VkKeyboardColor.POSITIVE)
         else:
@@ -427,10 +433,22 @@ def send_match_photos(session, user_id, search_res_list, counter: int = 0):
     if 0 <= counter < len(search_res_list):
         match_id = search_res_list[counter]['id']
         attachments = request.get_photos(match_id)['photos']
-        for i in attachments:
-            session.messages.send(
-                user_id=user_id,
-                random_id=get_random_id(),
-                message='Фото с профиля:',
-                attachment=str(i)
-            )
+
+        session.messages.send(
+            user_id=user_id,
+            random_id=get_random_id(),
+            message='Фото с профиля:',
+            attachment=attachments
+        )
+
+
+def stop_chatting(session, triggers_dict: dict, user_id):
+    """
+    Reset triggers and clear keyboards
+    :param session:
+    :param triggers_dict: dict (contains active users positional triggers and variables values)
+    :param user_id: int (active user vk id)
+    """
+    kb_ = empty_keyboard()
+    send_keyboard(session, user_id, kb_)
+    msg.reset_triggers(triggers_dict, user_id)
